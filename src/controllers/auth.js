@@ -1,9 +1,11 @@
 const bcrypt = require('bcrypt');
-const user = require('../models/user');
+const jwt  = require('jsonwebtoken');
+
 
 const userModel = require('../models/user');
 
 module.exports.signup = (async(req,res,next) => {
+    req.body.email = req.body.email.toLowerCase();
     await userModel
     .findOne({email : req.body.email})
     .then(async(rec) => {
@@ -18,7 +20,7 @@ module.exports.signup = (async(req,res,next) => {
                         message: error
                     })
                 }else{
-                    const signupRequest = {...req.body, password: hash}
+                    const signupRequest = {...req.body ,password: hash}
                     await userModel
                     .create(signupRequest)
                     .then((result) => {
@@ -42,17 +44,37 @@ module.exports.signup = (async(req,res,next) => {
 
 module.exports.login = (async(req,res,next) => {
     await userModel
-    .find(req.body)
+    .findOne({email: req.body.email})
     .then((result) => {
         if(result){
-            res.status(200).send(`Welcome back, ${req.body.username}`);
+            bcrypt.compare(req.body.password, result.password, (error, hashed) => {
+                if(error){
+                    console.log(error);
+                    return res.status(401).send("Auth Failed!");
+                }else if(hashed){
+                    const token = jwt.sign({
+                        email: result.email,
+                        firstName: result.firstName,
+                        lastName: result.lastName
+                    }, process.env.JWT_PASSWORD,{
+                        expiresIn: "1h"
+                    })
+                    res.status(200).json({
+                        message: `Welcome back, ${result.firstName}`,
+                        token: token
+                    })
+                }else{
+                    return res.status(401).send("Wrong credentials!");
+                }
+            })
         }else{
             return res.status(401).send("Wrong credentials!");
         }
     })
     .catch((error) => {
-        return res.send(500).json({
-            message: error
+        console.log(error);
+        return res.status(500).json({
+            message: "internal server error!"
         })
     })
 })
