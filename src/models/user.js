@@ -9,9 +9,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    password:{
+    username:{
         type: String,
         required: true,
+        unique: true
     },
     email:{
         type: String,
@@ -19,10 +20,30 @@ const userSchema = new mongoose.Schema({
         unique: true, 
         match: /[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/
     },
-    gender:{
+    password:{
         type: String,
-        required: true
+        required: true,
+    },
+    bio:{
+        type: String,
+        required: false
+    },
+    profileImage:{
+        type: String,
+        required: false,
+    },
+    isVerified:{
+        type: Boolean,
+        default: false
+    },
+    resetPasswordToken:{
+        type: String,
+        required: false
+    },
+    resetPasswordExpiration:{
+        type: Date,
+        required: false
     }
-});
+},{timestamps: true});
 
 module.exports = mongoose.model('User', userSchema);
