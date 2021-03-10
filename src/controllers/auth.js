@@ -1,44 +1,74 @@
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const jwt  = require('jsonwebtoken');
+const sgMail = require('@sendgrid/mail');
 
 const userModel = require('../models/user');
+const tokenModel = require('../models/token');
+
+const sendVerificationEmail = async(req,res,next) => {
+    
+    const token = req.token;
+    await tokenModel
+    .save(token)
+    .then(() => {
+
+    })
+    .catch((error) => {
+
+    })
+};
 
 module.exports.signup = (async(req,res,next) => {
-    req.body.email = req.body.email.toLowerCase();
-    await userModel
-    .findOne({email : req.body.email})
-    .then(async(rec) => {
-        if(rec){
-            return res.status(409).json({
-                message: "User already exists!"
-            })
-        }else{
-            bcrypt.hash(req.body.password, 10 , async(error, hash) => {
-                if(error){
-                    return res.status(500).json({
-                        message: error
-                    })
-                }else{
-                    const signupRequest = {...req.body ,password: hash}
-                    await userModel
-                    .create(signupRequest)
-                    .then((result) => {
-                        res.status(201).send("User created!");
-                    })
-                    .catch((error) => {
+    const usn = await userModel.findOne({username:req.body.username})
+    if (!usn){
+        req.body.email = req.body.email.toLowerCase();
+        await userModel
+        .findOne({email : req.body.email})
+        .then(async(rec) => {
+            if(rec){
+                return res.status(409).json({
+                    message: "Email already exists!"
+                })
+            }else{
+                bcrypt.hash(req.body.password, 10 , async(error, hash) => {
+                    if(error){
                         return res.status(500).json({
                             message: error
                         })
-                    })
-                }
-            })
-        }
-    })
-    .catch((error) => {
-        return res.status(500).json({
-            message: error
+                    }else{
+                        const signupRequest = {...req.body ,password: hash}
+                        await userModel
+                        .create(signupRequest)
+                        .then((result) => {
+                            const genToken = crypto.randomBytes(20).toString('hex');
+                            const token = new Token({
+                                token: genToken,
+                                userId: result._id
+                            });
+                            req.token = token;
+                            //res.status(201).send("User created!");
+                            next();
+                        })
+                        .catch((error) => {
+                            return res.status(500).json({
+                                message: error
+                            })
+                        })
+                    }
+                })
+            }
         })
-    })
+        .catch((error) => {
+            return res.status(500).json({
+                message: error
+            })
+        })
+    }else{
+        return res.status(409).json({
+            message: "Username already exists!"
+        });
+    }
 });
 
 module.exports.login = (async(req,res,next) => {
