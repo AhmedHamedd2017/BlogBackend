@@ -13,7 +13,7 @@ const sendVerificationEmail = (async(req,res) => {
     await tokenModel
     .create(token)
     .then((savedToken) => {
-        sendEmail(process.env.FROM_EMAIL,'Please verify your email account!',
+        sendEmail(req,res,process.env.FROM_EMAIL,'Please verify your email account!',
         'Dear user, welcome to blog! please verify your account!',
         `<p>Hi ${req.userData.username}<p><br><p>Please click on the following ${link} to verify your account.</p>
         <br><p>If you did not request this, please ignore this email.</p>`,req.userData.email)
@@ -157,5 +157,33 @@ module.exports.login = (async(req,res,next) => {
         return res.status(500).json({
             message: "internal server error!"
         })
+    })
+});
+
+module.exports.resendToken = (async(req,res,next) => {
+    await userModel
+    .findOne({email: req.body.email})
+    .then(async(user) => {
+        if(user){
+            if(user.isVerified){
+                res.status(400).send('User already verified.');    
+            }else{
+                req.userData = user;
+                await tokenModel
+                .findOne({userId: user._id})
+                .then(async(token) => {
+                    req.token = token
+                    await sendVerificationEmail(req,res)
+                })
+                .catch((error) => {
+                    res.status(500).send('Internal server error!');
+                })
+            }
+        }else{
+            res.status(401).send('There is no user with such an E-mail.');
+        }
+    })
+    .catch(() => {
+
     })
 });
