@@ -1,44 +1,29 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt  = require('jsonwebtoken');
-const mailjet = require ('node-mailjet').connect(process.env.MAILJET_API2,process.env.MAILJET_KEY2)
+
 
 const userModel = require('../models/user');
 const tokenModel = require('../models/token');
+const sendEmail = require('../util/sendEmail');
 
-const sendVerificationEmail = async(req,res) => {
+const sendVerificationEmail = (async(req,res) => {
     const token = req.token;
     const link = process.env.HOST_URL + '/auth/verify/' + token.token;
     await tokenModel
     .create(token)
     .then((savedToken) => {
-        const request = mailjet.post('send').request({
-            FromEmail: process.env.FROM_EMAIL,
-            FromName: '@noreply',
-            Subject: 'Please verify your email account!',
-            'Text-part':
-              'Dear user, welcome to blog! please verify your account!',
-            'Html-part':
-            `<p>Hi ${req.userData.username}<p><br><p>Please click on the following ${link} to verify your account.</p><br><p>If you did not request this, please ignore this email.</p>`,
-            Recipients: [{ Email: req.userData.email }],
-          })
-        .then(() => {
-            res.status(200).send(`Thier is verification email sent to ${req.userData.email} please verify your account!`)
-        })
-        .catch((error) =>{
-            console.log('1' + error);
-            return res.status(500).json({
-                message: error
-            })
-        })
+        sendEmail(process.env.FROM_EMAIL,'Please verify your email account!',
+        'Dear user, welcome to blog! please verify your account!',
+        `<p>Hi ${req.userData.username}<p><br><p>Please click on the following ${link} to verify your account.</p>
+        <br><p>If you did not request this, please ignore this email.</p>`,req.userData.email)
     })
     .catch((error) => {
-        console.log('2' + error);
         return res.status(500).json({
             message: error
         })
     })
-};
+});
 
 module.exports.signup = (async(req,res,next) => {
     const usn = await userModel.findOne({username:req.body.username})
@@ -93,7 +78,7 @@ module.exports.signup = (async(req,res,next) => {
     }
 });
 
-module.exports.verify = async(req,res,next) => {
+module.exports.verify = (async(req,res,next) => {
     if(req.params.token){
         await tokenModel
         .findOne({token: req.params.token})
@@ -131,7 +116,7 @@ module.exports.verify = async(req,res,next) => {
             message: "No token found to verify!"
         });
     }
-};
+});
 
 module.exports.login = (async(req,res,next) => {
     await userModel
@@ -173,4 +158,4 @@ module.exports.login = (async(req,res,next) => {
             message: "internal server error!"
         })
     })
-})
+});
