@@ -6,6 +6,7 @@ const jwt  = require('jsonwebtoken');
 const userModel = require('../models/user');
 const tokenModel = require('../models/token');
 const sendEmail = require('../util/sendEmail');
+const { EDESTADDRREQ } = require('constants');
 
 const sendVerificationEmail = (async(req,res) => {
     const token = req.token;
@@ -172,8 +173,19 @@ module.exports.resendToken = (async(req,res,next) => {
                 await tokenModel
                 .findOne({userId: user._id})
                 .then(async(token) => {
-                    req.token = token
-                    await sendVerificationEmail(req,res)
+                    if(token){
+                        req.token = {
+                            userId: user._id,
+                            token: token
+                        }
+                        await sendVerificationEmail(req,res)
+                    }else{
+                        req.token = {
+                            userId: user._id,
+                            token: crypto.randomBytes(20).toString('hex')
+                        }
+                        await sendVerificationEmail(req,res)
+                    }
                 })
                 .catch((error) => {
                     res.status(500).send('Internal server error!');
