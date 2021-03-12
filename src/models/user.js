@@ -43,6 +43,17 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpiration:{
         type: Date,
         required: false
+    },
+    role:{
+        type: String,
+        required: true,
+        default: 'User'
+    },
+    banned:{
+        type: Boolean,
+        required: true,
+        default: false
+        
     }
 },{timestamps: true});
 

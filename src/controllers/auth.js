@@ -59,7 +59,6 @@ module.exports.signup = (async(req,res,next) => {
                             await sendVerificationEmail(req,res);
                         })
                         .catch((error) => {
-                            console.log('3' + error);
                             return res.status(500).json({
                                 message: error
                             })
@@ -134,34 +133,39 @@ module.exports.login = (async(req,res,next) => {
     await userModel
     .findOne(query)
     .then((result) => {
-        if(result){
-            if(result.isVerified){
-                bcrypt.compare(req.body.password, result.password, (error, hashed) => {
-                    if(error){
-                        console.log(error);
-                        return res.status(401).send("Auth Failed!");
-                    }else if(hashed){
-                        const token = jwt.sign({
-                            email: result.email,
-                            firstName: result.firstName,
-                            lastName: result.lastName
-                        }, process.env.JWT_PASSWORD,{
-                            expiresIn: "1h"
-                        })
-                        res.status(200).json({
-                            message: `Welcome back, ${result.firstName}`,
-                            token: token
-                        })
-                    }else{
-                        return res.status(401).send("Wrong credentials!");
-                    }
-                })
-            }
-            else{
-                res.status(401).json({ type: 'not-verified', message: 'Your account has not been verified.' });
+        if(!result.banned){
+            if(result){
+                if(result.isVerified){
+                    bcrypt.compare(req.body.password, result.password, (error, hashed) => {
+                        if(error){
+                            console.log(error);
+                            return res.status(401).send("Auth Failed!");
+                        }else if(hashed){
+                            const token = jwt.sign({
+                                email: result.email,
+                                firstName: result.firstName,
+                                lastName: result.lastName
+                            }, process.env.JWT_PASSWORD,{
+                                expiresIn: "1h"
+                            })
+                            res.status(200).json({
+                                message: `Welcome back, ${result.firstName}`,
+                                token: token
+                            })
+                        }else{
+                            return res.status(401).send("Wrong credentials!");
+                        }
+                    })
+                }
+                else{
+                    res.status(401).json({ type: 'not-verified', message: 'Your account has not been verified.' });
+                }
+            }else{
+                return res.status(401).send("Wrong credentials!");
             }
         }else{
-            return res.status(401).send("Wrong credentials!");
+            return res.status(401).send(`sorry ${user.firstName} to inform you that you're account
+            has been banned by the admins.`);
         }
     })
     .catch((error) => {
@@ -262,7 +266,7 @@ module.exports.reset = (async(req,res,next) => {
     }
 });
 
-module.exports.changePassword = (async(req,res,next) => {
+module.exports.resetPassword = (async(req,res,next) => {
     await userModel
     .findOne({resetPasswordToken: req.params.token})
     .then((user) => {

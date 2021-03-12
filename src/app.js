@@ -6,6 +6,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const auth = require('./routes/auth');
+const user = require('./routes/user');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 app.use('/auth', auth);
+app.use('/user', user);
 
 mongoose
     .connect(`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.c9ysh.mongodb.net/test`,{useUnifiedTopology: true, useNewUrlParser: true , useCreateIndex: true})
