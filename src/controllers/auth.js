@@ -6,7 +6,8 @@ const jwt  = require('jsonwebtoken');
 const userModel = require('../models/user');
 const tokenModel = require('../models/token');
 const sendEmail = require('../util/sendEmail');
-const { EDESTADDRREQ } = require('constants');
+
+
 
 const sendVerificationEmail = (async(req,res) => {
     const token = req.token;
@@ -120,8 +121,18 @@ module.exports.verify = (async(req,res,next) => {
 });
 
 module.exports.login = (async(req,res,next) => {
+    let query;
+    if('username' in req.body){
+        query ={ 
+            username: req.body.username
+        }
+    }else if('email' in req.body){
+        query ={ 
+            email: req.body.email
+        }
+    }
     await userModel
-    .findOne({username: req.body.username})
+    .findOne(query)
     .then((result) => {
         if(result){
             if(result.isVerified){
@@ -197,5 +208,86 @@ module.exports.resendToken = (async(req,res,next) => {
     })
     .catch(() => {
 
+    })
+});
+
+module.exports.recover = (async(req,res,next) => {
+    const email = req.body.email
+    await userModel
+    .findOne({email: email})
+    .then(async(user) => {
+        if(user){
+            user.resetPasswordToken = crypto.randomBytes(20).toString('hex');
+            user.resetPasswordExpiration = Date.now() + 3600000;
+            await user.save()
+            .then((savedUser) => {
+                const link = process.env.HOST_URL + '/auth/reset/' + savedUser.resetPasswordToken;
+                
+                sendEmail(req,res,process.env.FROM_EMAIL,'Reset Password', 'Reset Password Mail',
+                `<p>Hi ${user.username}</p>
+                <p>Please click on the following ${link} to reset your password.</p> 
+                <p>If you did not request this, please ignore this email and your password will remain unchanged.</p>` 
+                , savedUser.email);
+            })
+            .catch((error) => {
+                return res.status(500).send('Internal Server Error.');
+            })
+        }else{
+            return res.status(401).send('The email address ' + req.body.email + ' is not associated with any account. Double-check your email address and try again.');
+        }
+    })
+    .catch((error) => {
+        return res.status(500).send('Internal Server Error.');
+    })
+});
+
+module.exports.reset = (async(req,res,next) => {
+    if(req.params.token){
+        const token = req.params.token;
+        await userModel
+        .findOne({resetPasswordToken: token, resetPasswordExpiration: {$gt: Date.now()}})
+        .then((user) => {
+            if(user){
+                res.render('reset',{user});
+            }else{
+                return res.status(401).send('Password reset token is invalid or has expired.');
+            }
+        })
+        .catch((error) => {
+            console.log(error);
+            return res.status(500).send('Internal Server Error');
+        })
+    }else{
+        return res.status(400).send("No token found to verify!");
+    }
+});
+
+module.exports.changePassword = (async(req,res,next) => {
+    await userModel
+    .findOne({resetPasswordToken: req.params.token})
+    .then((user) => {
+        if(user){
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpiration = undefined;
+            user.isVerified = true;
+            console.log(req.body.password)
+            bcrypt.hash(req.body.password, 10, async(error,hashed) => {
+                if(error){
+                    return res.status(500).send('Internal Server Error');
+                }else{
+                    console.log(hashed);
+                    user.password = hashed;
+                    user.save();
+                    console.log("Changed PW");
+                    res.status(204).send("Your password is successfully updated!");
+                }
+            });
+        }else{
+            
+            return res.status(401).send('Password reset token is invalid or has expired.');
+        }
+    })
+    .catch((error) => {
+        return res.status(500).send('Internal Server Error');
     })
 });

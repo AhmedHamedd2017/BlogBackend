@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const cors = require('cors');
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 
@@ -9,8 +10,12 @@ const auth = require('./routes/auth');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'jade');
+
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use('/auth', auth);
 

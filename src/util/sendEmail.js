@@ -10,7 +10,7 @@ module.exports = ((req,res,from, subject, text, html , to) => {
         Recipients: [{ Email: to }]
       })
     .then(() => {
-        res.status(200).send(`Thier is verification email sent to ${req.userData.email} please verify your account!`)
+        res.status(200).send(`Email sent to ${req.userData.email}!`)
     })
     .catch((error) =>{
         return res.status(500).json({
