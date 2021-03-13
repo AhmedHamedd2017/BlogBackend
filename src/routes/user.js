@@ -12,10 +12,11 @@ router.put('/:username', authMiddleware.user, user.update);
 
 router.delete('/:username', authMiddleware.user, user.delete);
 
-router.post('ban', authMiddleware.admin, user.ban);
-router.post('create', authMiddleware.admin, user.create);
-router.post('demote', authMiddleware.admin, user.demote);
-router.post('promote', authMiddleware.admin, user.promote);
+router.post('/ban', authMiddleware.admin, user.ban);
+router.post('/unban', authMiddleware.admin, user.unban);
+router.post('/create', authMiddleware.admin, user.create);
+router.post('/demote', authMiddleware.admin, user.demote);
+router.post('/promote', authMiddleware.admin, user.promote);
 
 
 module.exports = router;

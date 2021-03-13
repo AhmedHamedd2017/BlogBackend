@@ -1,4 +1,8 @@
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 
+const uploader = require('../util/uploadImage');
+const sendEmail = require('../util/sendEmail');
 const userModel = require('../models/user');
 
 //Admin Features
@@ -7,9 +11,9 @@ module.exports.index = (async(req,res,next) => {
     .find()
     .then((users) => {
         if(users){
-            return res.status(404).send('There is no users.');
-        }else{
             res.status(200).send({users});
+        }else{
+            return res.status(404).send('There is no users.');
         }
     })
     .catch((error) => {
@@ -25,9 +29,7 @@ module.exports.create = (async(req,res,next) => {
         .findOne({email : req.body.email})
         .then(async(rec) => {
             if(rec){
-                return res.status(409).json({
-                    message: "Email already exists!"
-                })
+                return res.status(409).send("Email already exists!");
             }else{
                 const randPassword = '_' + Math.random().toString(36).substr(2, 9)
                 bcrypt.hash(randPassword, 10 , async(error, hash) => {
@@ -39,11 +41,12 @@ module.exports.create = (async(req,res,next) => {
                         let signupRequest = {...req.body ,password: hash}
                         signupRequest.resetPasswordToken = crypto.randomBytes(20).toString('hex');
                         signupRequest.resetPasswordExpiration = Date.now() + 3600000;
-                        signupRequest.save()
+                        await userModel
+                        .create(signupRequest)
                         .then((savedUser) => {
                             const link = process.env.HOST_URL + '/auth/reset/' + savedUser.resetPasswordToken;
                             sendEmail(req,res,process.env.FROM_EMAIL,'Acquire Account', 'Acquire Account Mail',
-                            `<p>Hi ${user.username}<p><br><p>A new account has been created for you. Please visit the following ${link} to set your password and login.</p> 
+                            `<p>Hi ${savedUser.username}<p><br><p>A new account has been created for you. Please visit the following ${link} to set your password and login.</p> 
                             <br><p>If you did not request this, please ignore this email.</p>` 
                             , savedUser.email);
                         })
@@ -55,9 +58,7 @@ module.exports.create = (async(req,res,next) => {
             }
         })
         .catch((error) => {
-            return res.status(500).json({
-                message: error
-            })
+            return res.status(500).send('Internal Server Error');
         })
     }else{
         return res.status(409).json({
@@ -72,8 +73,10 @@ module.exports.promote = (async(req,res,next) => {
     .then((user) => {
         if(user){
             user.role = 'Admin';
-            user.save();
-            res.send(200).send(`${user.username} has been promoted to admin`);
+            user.save()
+            .then(() => {
+                res.status(200).send(`${user.username} has been promoted to admin`);
+            })
         }else{
             return res.status(404).send(`${req.body.username} does not exist`);
         }
@@ -89,8 +92,10 @@ module.exports.demote = (async(req,res,next) => {
     .then((user) => {
         if(user){
             user.role = 'User';
-            user.save();
-            res.send(200).send(`${user.username} has been demoted to user`);
+            user.save()
+            .then(() => {
+                res.status(200).send(`${user.username} has been demoted to user`);
+            })
         }else{
             return res.status(404).send(`${req.body.username} does not exist`);
         }
@@ -107,7 +112,24 @@ module.exports.ban = (async(req,res,next) => {
         if(user){
             user.banned = true;
             user.save();
-            res.send(200).send(`${user.username} has been banned`);
+            res.status(200).send(`${user.username} has been banned`);
+        }else{
+            return res.status(404).send(`${req.body.username} does not exist`);
+        }
+    })
+    .catch((error) => {
+        return res.status(500).send('Internal Server Error.');
+    })
+});
+
+module.exports.unban = (async(req,res,next) => {
+    await userModel
+    .findOne({username: req.body.username})
+    .then((user) => {
+        if(user){
+            user.banned = false;
+            user.save();
+            res.status(200).send(`${user.username} has been unbanned`);
         }else{
             return res.status(404).send(`${req.body.username} does not exist`);
         }
@@ -136,7 +158,7 @@ module.exports.show = (async(req,res,next) => {
 module.exports.delete = (async(req,res,next) => {
     if(req.params.username === req.userData.username){
         await userModel
-        .findOne({username: req.body.username})
+        .findOne({username: req.params.username})
         .then(async(user) => {
             if(user){
                 await userModel
@@ -148,7 +170,7 @@ module.exports.delete = (async(req,res,next) => {
                     return res.status(500).send('Internal Server Error.');
                 })
             }else{
-                return res.status(404).send(`${req.body.username} does not exist!`);
+                return res.status(404).send(`${req.params.username} does not exist!`);
             }
         })
         .catch((error) => {
@@ -168,14 +190,14 @@ module.exports.update = (async(req,res,next) => {
             if(!req.file){
                 res.status(200).send(`${updatedRec.username} is updated!`);
             }else{
-                //const result = await uploader(req);
+                const result = uploader(req.file);
                 updatedRec.profileImage = result;
                 updatedRec.save()
                 res.status(200).send(`${updatedRec.username} is updated!`);
             }
         })
         .catch((error) => {
-
+            return res.status(500).send('Internal Server Error!');
         })
     }else{
         return res.status(401).send('Unauthorized User.');

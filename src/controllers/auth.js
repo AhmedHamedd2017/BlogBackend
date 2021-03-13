@@ -144,7 +144,9 @@ module.exports.login = (async(req,res,next) => {
                             const token = jwt.sign({
                                 email: result.email,
                                 firstName: result.firstName,
-                                lastName: result.lastName
+                                lastName: result.lastName,
+                                role: result.role,
+                                username: result.username
                             }, process.env.JWT_PASSWORD,{
                                 expiresIn: "1h"
                             })
@@ -164,7 +166,7 @@ module.exports.login = (async(req,res,next) => {
                 return res.status(401).send("Wrong credentials!");
             }
         }else{
-            return res.status(401).send(`sorry ${user.firstName} to inform you that you're account
+            return res.status(401).send(`sorry ${result.firstName} to inform you that you're account
             has been banned by the admins.`);
         }
     })
@@ -274,12 +276,10 @@ module.exports.resetPassword = (async(req,res,next) => {
             user.resetPasswordToken = undefined;
             user.resetPasswordExpiration = undefined;
             user.isVerified = true;
-            console.log(req.body.password)
             bcrypt.hash(req.body.password, 10, async(error,hashed) => {
                 if(error){
                     return res.status(500).send('Internal Server Error');
                 }else{
-                    console.log(hashed);
                     user.password = hashed;
                     user.save();
                     console.log("Changed PW");
